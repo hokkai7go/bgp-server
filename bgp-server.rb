@@ -218,6 +218,25 @@ class BGPSession
 end
 
 class BGPRoutingTable
+  def initialize
+    @entries = {}
+  end
+
+  def add_route(prefix, length, attributes)
+    key = "#{prefix}/#{length}"
+    @entries[key] = { attributes: attributes, timestamp: Time.now }
+    puts "Route added: #{key}"
+  end
+
+  def withdraw_route(prefix, length)
+    key = "#{prefix}/#{length}"
+    @entries.delete(key)
+    puts "Route withdrawn: #{key}"
+  end
+
+  def all_routes
+    @entries
+  end
 end
 
 # PORT = 10179
