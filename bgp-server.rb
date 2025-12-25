@@ -57,6 +57,26 @@ class BGPMessage
   def self.build_keepalive
     new(TYPE_KEEPALIVE, '')
   end
+
+  def self.parse_nlri(binary_data)
+    routes = []
+    cursor = 0
+    while cursor < binary_data.length
+      prefix_len = binary_data[cursor].unpack1('C')
+      cursor += 1
+
+      byte_len = (prefix_len / 8.0).ceil
+      prefix_bytes = binary_data[cursor, byte_len]
+      cursor += byte_len
+
+      ip_parts = prefix_bytes.unpack('C*')
+      ip_parts << 0 while ip_parts.length < 4
+      prefix_addr = ip_parts.join('.')
+
+      routes << { prefix: prefix_addr, length: prefix_len }
+    end
+    routes
+  end
 end
 
 class BGPMessageParser
