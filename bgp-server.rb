@@ -181,10 +181,11 @@ class BGPSession
 
   def terminate_session(reason = 'Unknown Error')
     puts "Terminating session. Reason: #{reason}"
-    @socket&.close
-    @keepalive_timer_thread&.kill
-    @hold_timer_thread&.kill
     @state = STATE_IDLE
+    @socket&.close
+    # 自分自身でない場合のみ kill する
+    @keepalive_timer_thread&.kill if @keepalive_timer_thread != Thread.current
+    @hold_timer_thread&.kill if @hold_timer_thread != Thread.current
   end
 
   def send_open(hold_time = 180)
