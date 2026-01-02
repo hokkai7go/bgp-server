@@ -11,7 +11,7 @@ class BGPMessage
 
   # すべてのBGPメッセージは19バイトのヘッダーを持つ
   HEADER_LENGTH = 19
-  MARKER        = "\xFF" * 16 # 16バイトのマーカー
+  MARKER        = ("\xFF" * 16).b # 16バイトのマーカー
 
   attr_reader :type, :payload
 
