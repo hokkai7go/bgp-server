@@ -195,25 +195,33 @@ class BGPSession
 
   def receive_and_handle_open
     # 実際にはデータが完全に揃うまでループする必要があるが、ここでは簡易化
-    data = @socket.read(1024)
+    begin
+      data = @socket.readpartial(1024)
 
-    # TODO: BGPMessageParserを使ってデータを BGPMessage オブジェクトに変換する
-    # 例: received_msg = @parser.parse(data)
+      # TODO: BGPMessageParserを使ってデータを BGPMessage オブジェクトに変換する
+      # 例: received_msg = @parser.parse(data)
 
-    # ここでは、受信したバイナリデータを直接パースして検証する (テストのため簡易化)
-    # 受信データがBGPヘッダー＋最低限のOPENペイロード（19+10=29バイト）以上あるか確認
-    if data && data.length >= 29
-      marker = data[0, 16]
-      type   = data[18].unpack('C').first
-      if marker == BGPMessage::MARKER && TYPE == BGPMessage::TYPE_OPEN
-        puts '<-- Received valid OPEN message.'
-        @state = :OpenConfirm
-        true
+      # ここでは、受信したバイナリデータを直接パースして検証する (テストのため簡易化)
+      # 受信データがBGPヘッダー＋最低限のOPENペイロード（19+10=29バイト）以上あるか確認
+      if data && data.length >= 29
+        marker = data[0, 16]
+        type   = data[18].unpack('C').first
+        if marker == BGPMessage::MARKER && TYPE == BGPMessage::TYPE_OPEN
+          puts '<-- Received valid OPEN message.'
+          @state = STATE_OPENCONFIRM
+          true
+        end
       end
+      # 失敗時は NOTIFICATION を送るロジックが本来必要だが、ここでは false を返す
+      puts "<-- Received invalid message or not an OPEN message."
+      false
+    rescue EOFError
+      puts "Connection closed by peer."
+      false
+    rescue => e
+      puts "Error during receive: #{e.message}"
+      false
     end
-    # 失敗時は NOTIFICATION を送るロジックが本来必要だが、ここでは false を返す
-    puts "<-- Received invalid message or not an OPEN message."
-    false
   end
 end
 
