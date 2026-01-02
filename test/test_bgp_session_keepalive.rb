@@ -46,7 +46,7 @@ class BGPSessionKeepaliveTest < Minitest::Test
 
       assert_equal BGPSession::STATE_IDLE, session.instance_variable_get(:@state), 'Hold Timer 切れによりセッション状態が IDLE に遷移すること'
 
-      assert_raises(IOError, Errno::ECONNRESET) { client_socket.write('Test Data') }
+      assert_nil client_socket.read(1), "サーバー側から切断されたため、read は nil を返すこと"
 
     rescue Timeout::Error
       flunk 'Hold Timer タイムアウト処理が指定時間内に完了しませんでした。'
