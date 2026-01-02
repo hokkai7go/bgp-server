@@ -22,19 +22,20 @@ class BGPSessionTest < Minitest::Test
     begin
       # server logic
       server_thread = Thread.new do
+        Thread.current.abort_on_exception = true # エラー時にすぐ止める
         client_conn = server_socket.accept
         session = BGPSession.new(client_conn, SERVER_AS, SERVER_RID)
 
         session.send_open
         received_ok = session.receive_and_handle_open
         Thread.current[:result] = received_ok
-        client_conn.close
+        client_conn&.close
       end
 
       # client logic
       sleep(0.1)
       client_socket = TCPSocket.new('127.0.0.1', TEST_PORT)
-      server_open_data = Timeout::timeout(2) { client_socket.read(1024) }
+      server_open_data = Timeout::timeout(2) { client_socket.readpartial(1024) }
       client_socket.write(build_client_open_message)
 
       assert server_open_data && server_open_data.length >= 29, 'サーバーからデータを受信できたこと'
