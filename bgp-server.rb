@@ -207,7 +207,7 @@ class BGPSession
       if data && data.length >= 29
         marker = data[0, 16]
         type   = data[18].unpack('C').first
-        if marker == BGPMessage::MARKER && TYPE == BGPMessage::TYPE_OPEN
+        if marker == BGPMessage::MARKER && type == BGPMessage::TYPE_OPEN
           puts '<-- Received valid OPEN message.'
           @state = STATE_OPENCONFIRM
           true
