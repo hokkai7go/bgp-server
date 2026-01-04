@@ -210,7 +210,7 @@ class BGPSession
         if marker == BGPMessage::MARKER && type == BGPMessage::TYPE_OPEN
           puts '<-- Received valid OPEN message.'
           @state = STATE_OPENCONFIRM
-          true
+          return true
         end
       end
       # 失敗時は NOTIFICATION を送るロジックが本来必要だが、ここでは false を返す
