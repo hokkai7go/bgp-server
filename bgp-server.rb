@@ -11,7 +11,7 @@ class BGPMessage
 
   # すべてのBGPメッセージは19バイトのヘッダーを持つ
   HEADER_LENGTH = 19
-  MARKER        = "\xFF" * 16 # 16バイトのマーカー
+  MARKER        = ("\xFF" * 16).b # 16バイトのマーカー
 
   attr_reader :type, :payload
 
@@ -207,10 +207,10 @@ class BGPSession
       if data && data.length >= 29
         marker = data[0, 16]
         type   = data[18].unpack('C').first
-        if marker == BGPMessage::MARKER && TYPE == BGPMessage::TYPE_OPEN
+        if marker == BGPMessage::MARKER && type == BGPMessage::TYPE_OPEN
           puts '<-- Received valid OPEN message.'
           @state = STATE_OPENCONFIRM
-          true
+          return true
         end
       end
       # 失敗時は NOTIFICATION を送るロジックが本来必要だが、ここでは false を返す

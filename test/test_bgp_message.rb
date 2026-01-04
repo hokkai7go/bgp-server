@@ -12,7 +12,7 @@ class BGPMessageTest < Minitest::Test
     assert_equal expected_length, binary_data.length
 
     marker = binary_data[0, 16]
-    expected_marker = "\xFF" * 16
+    expected_marker = ("\xFF" * 16).b
     assert_equal expected_marker, marker, 'マーカーが16バイトの0xFFであること'
 
     message_type = binary_data[18].unpack('C').first
