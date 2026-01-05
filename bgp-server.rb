@@ -204,18 +204,19 @@ class BGPSession
 
       # ここでは、受信したバイナリデータを直接パースして検証する (テストのため簡易化)
       # 受信データがBGPヘッダー＋最低限のOPENペイロード（19+10=29バイト）以上あるか確認
-      if data && data.length >= 29
-        marker = data[0, 16]
-        type   = data[18].unpack('C').first
-        if marker == BGPMessage::MARKER && type == BGPMessage::TYPE_OPEN
-          puts '<-- Received valid OPEN message.'
-          @state = STATE_OPENCONFIRM
-          return true
-        end
-      end
+      return false unless data && data.length >= 29
+      marker = data[0, 16]
+      type   = data[18].unpack('C').first
+
       # 失敗時は NOTIFICATION を送るロジックが本来必要だが、ここでは false を返す
-      puts "<-- Received invalid message or not an OPEN message."
-      false
+      unless marker == BGPMessage::MARKER && type == BGPMessage::TYPE_OPEN
+        puts "<-- Received invalid message or not an OPEN message."
+        return false
+      end
+
+      puts '<-- Received valid OPEN message.'
+      @state = STATE_OPENCONFIRM
+      true
     rescue EOFError
       puts "Connection closed by peer."
       false
