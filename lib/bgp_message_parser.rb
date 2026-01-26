@@ -13,7 +13,7 @@ class BGPMessageParser
     # 2. 次の2バイトを「長さ」として取得
     # byteslice(16, 2) で 17, 18 バイト目を確実に狙う
     length_bytes = @buffer.byteslice(16, 2)
-    length = length_bytes.unpack1("n")
+    length = length_bytes.unpack1('n')
 
     p "Debug: raw_length_bytes=#{length_bytes.unpack1('H*')}, length=#{length}"
 
