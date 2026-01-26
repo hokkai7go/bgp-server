@@ -12,7 +12,7 @@ class BGPMessageParserTest < Minitest::Test
     @parser.append(@keepalive[0..10])
     assert_nil @parser.next_message, 'データが足りないときはnilを返すこと'
 
-    @parser.append(@keepalive[10..-1])
+    @parser.append(@keepalive[11..-1])
     message = @parser.next_message
     assert_instance_of BGPMessage, message
     assert_equal BGPMessage::TYPE_KEEPALIVE, message.type
