@@ -67,4 +67,59 @@ class BGPMessage
     end
     routes
   end
+
+  def parse_update_payload
+    info = { withdrawn_routes: [], path_attributes: {}, nlri: [] }
+    cursor = 0
+
+    # 1. Withdrawn Routes
+    withdrawn_len = @payload[cursor, 2].unpack1('n')
+    cursor += 2
+    # Withdrawn routes parsing would go here, but we skip for now.
+    cursor += withdrawn_len
+
+    # 2. Path Attributes
+    path_attr_len = @payload[cursor, 2].unpack1('n')
+    cursor += 2
+    path_attr_end = cursor + path_attr_len
+    info.merge!(self.class.parse_path_attributes(@payload.byteslice(cursor, path_attr_len)))
+    cursor = path_attr_end
+
+    # 3. NLRI
+    nlri_data = @payload.byteslice(cursor..-1)
+    info[:nlri] = self.class.parse_nlri(nlri_data) if nlri_data && !nlri_data.empty?
+
+    info
+  end
+
+  def self.parse_path_attributes(binary_data)
+    attributes = {}
+    cursor = 0
+    while cursor < binary_data.length
+      _flags, type_code, length = binary_data[cursor, 3].unpack('CCC')
+      cursor += 3 # 1 byte for length
+      value = binary_data.byteslice(cursor, length)
+      cursor += length
+
+      case type_code
+      when 2 # AS_PATH
+        attributes[:as_path] = parse_as_path(value)
+      end
+    end
+    attributes
+  end
+
+  def self.parse_as_path(binary_data)
+    as_path = []
+    cursor = 0
+    while cursor < binary_data.length
+      segment_type, segment_length = binary_data[cursor, 2].unpack('CC')
+      cursor += 2
+      segment_end = cursor + (segment_length * 2) # AS numbers are 2 bytes
+      segment_asns = binary_data.byteslice(cursor, segment_length * 2).unpack('n*')
+      as_path << [segment_type, segment_asns]
+      cursor = segment_end
+    end
+    as_path
+  end
 end
