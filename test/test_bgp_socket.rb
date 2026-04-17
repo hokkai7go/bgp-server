@@ -55,9 +55,9 @@ class BGPSocketTest < Minitest::Test
 
     server_thread.join
 
-    rescue Timeout::Error
-      flunk '接続タイムアウト: サーバーが時間内に接続を受け入れられませんでした。'
-    rescue Exception => e
-      flunk "予期せぬエラー: #{e.message}"
-    end
+  rescue Timeout::Error
+    flunk '接続タイムアウト: サーバーが時間内に接続を受け入れられませんでした。'
+  rescue Exception => e
+    flunk "予期せぬエラー: #{e.message}"
+  end
 end
