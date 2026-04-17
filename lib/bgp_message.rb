@@ -12,8 +12,6 @@ class BGPMessage
   HEADER_LENGTH = 19
   MARKER        = ("\xFF" * 16).b # 16バイトのマーカー
 
-  attr_reader :type, :payload
-
   def initialize(type, payload = ''.b)
     @type    = type
     @payload = payload ? payload.b : "".b
