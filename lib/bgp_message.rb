@@ -65,4 +65,75 @@ class BGPMessage
     end
     routes
   end
+
+  def parse_update_payload
+    return nil unless @type == TYPE_UPDATE
+
+    data = @payload.dup
+
+    # 1. Withdrawn Routes
+    withdrawn_len  = data.slice!(0, 2).unpack1('n')
+    withdrawn_data = data.slice!(0, withdrawn_len)
+
+    # 2. Path Attributes
+    total_attr_len = data.slice!(0, 2).unpack1('n')
+    attr_data      = data.slice!(0, total_attr_len)
+    attributes     = parse_attributes(attr_data)
+
+    # 3. NLRI
+    nlri_data = data
+
+    {
+      withdrawn: withdrawn_data,
+      as_path:   attributes[:as_path],
+      next_hop:  attributes[:next_hop],
+      nlri:      nlri_data
+    }
+  end
+
+  private
+
+  def parse_attributes(data)
+    attrs = { as_path: [], next_hop: nil }
+    cursor = 0
+    while cursor < data.bytesize
+      flags = data.getbyte(cursor)
+      type  = data.getbyte(cursor + 1)
+
+      # 属性の長さを取得 (Extended Length対応 RFC8654?)
+      len_size = (flags & 0x10 != 0) ? 2 : 1
+      len      = (len_size == 2) ? data.byteslice(cursor + 2, 2).unpack1('n') : data.getbyte(cursor + 2)
+
+      header_size = 2 + len_size
+      value       = data.byteslice(cursor + header_size, len)
+
+      case type
+      when 2 # AS_PATH
+        attrs[:as_path] = parse_as_path(value)
+      when 3 # NEXT_HOP
+        attrs[:next_hop] = value.unpack('C*').join('.')
+      end
+      cursor += (header_size + len)
+    end
+    attrs
+  end
+
+  def parse_as_path(data)
+    path   = []
+    cursor = 0
+    while cursor < data.bytesize
+      # seg_type (1: AS_SET, 2: AS_SEQUENCE)
+      # seg_len: (AS番号の個数)
+      _seg_type = data.getbyte(cursor)
+      seg_len   = data.getbyte(cursor + 1)
+      cursor += 2
+
+      seg_len.times do
+        # 2バイトずつAS番号を取り出して、フラットな配列に放り込む
+        path << data.byteslice(cursor, 2).unpack1('n')
+        cursor += 2
+      end
+    end
+    path
+  end
 end
