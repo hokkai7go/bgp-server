@@ -102,16 +102,16 @@ class BGPMessage
 
       # 属性の長さを取得 (Extended Length対応 RFC8654?)
       len_size = (flags & 0x10 != 0) ? 2 : 1
-      len = (len_size == 2) ? data.byteslice(cursor + 2, 2).unpack1("n") : data.getbyte(cursor + 2)
+      len      = (len_size == 2) ? data.byteslice(cursor + 2, 2).unpack1('n') : data.getbyte(cursor + 2)
 
       header_size = 2 + len_size
-      value = data.byteslice(cursor + header_size, len)
+      value       = data.byteslice(cursor + header_size, len)
 
       case type
       when 2 # AS_PATH
         attrs[:as_path] = parse_as_path(value)
       when 3 # NEXT_HOP
-        attrs[:next_hop] = value.unpack("C*").join('.')
+        attrs[:next_hop] = value.unpack('C*').join('.')
       end
       cursor += (header_size + len)
     end
@@ -119,7 +119,7 @@ class BGPMessage
   end
 
   def parse_as_path(data)
-    path = []
+    path   = []
     cursor = 0
     while cursor < data.bytesize
       # seg_type (1: AS_SET, 2: AS_SEQUENCE)
@@ -130,7 +130,7 @@ class BGPMessage
 
       seg_len.times do
         # 2バイトずつAS番号を取り出して、フラットな配列に放り込む
-        path << data.byteslice(cursor, 2).unpack1("n")
+        path << data.byteslice(cursor, 2).unpack1('n')
         cursor += 2
       end
     end
