@@ -67,13 +67,34 @@ class BGPMessage
   end
 
   def parse_update_payload
-    attrs = parse_attributes(attr_data)
+    return nil unless @type == TYPE_UPDATE
+
+    data = @payload.dup
+
+    # 1. Withdrawn Routes
+    withdrawn_len  = data.slice!(0, 2).unpack1('n')
+    withdrawn_data = data.slice!(0, withdrawn_len)
+
+    # 2. Path Attributes
+    total_attr_len = data.slice!(0, 2).unpack1('n')
+    attr_data      = data.slice!(0, total_attr_len)
+    attributes     = parse_attributes(attr_data)
+
+    # 3. NLRI
+    nlri_data = data
+
+    {
+      withdrawn: withdrawn_data,
+      as_path:   attributes[:as_path],
+      next_hop:  attributes[:next_hop],
+      nlri:      nlri_data
+    }
   end
 
   private
 
   def parse_attributes(data)
-    attrs = { as_path: [] }
+    attrs = { as_path: [], next_hop: nil }
     cursor = 0
     while cursor < data.bytesize
       flags = data.getbyte(cursor)
