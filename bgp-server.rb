@@ -144,6 +144,21 @@ class BGPSession
       false
     end
   end
+
+  def handle_update_message(msg)
+    parsed = msg.parse_update_payload
+    return unless parsed
+
+    my_as = @config[:my_as]
+
+    if parsed[:as_path].include?(my_as)
+      puts "[WARN] Loop detected in AS_PATH: #{parsed[:as_path]}. Dropping route."
+      false
+    end
+
+    # ループがなければ、フォワーディングテーブル（RIB）に登録する処理へ進む
+    true
+  end
 end
 
 class BGPRoutingTable
