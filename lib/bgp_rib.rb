@@ -11,6 +11,17 @@ class BGPRib
     }
   end
 
+  def select_best_path(prefix)
+    peers = @table[prefix]
+    return nil if peers.empty?
+
+    # ベストパスを選ぶ
+    best_peer_ip, best_route_data = peers.min_by do |peer_ip, route|
+      route[:as_path].length
+    end
+    best_route_data.merge(peer_ip: best_peer_ip)
+  end
+
   def get_route(prefix, peer_ip)
     @table[prefix][peer_ip]
   end
