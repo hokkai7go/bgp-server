@@ -16,8 +16,6 @@ class BGPBestPathTest < Minitest::Test
     @rib.add_route(prefix, peer_ip: '192.168.2.2', next_hop: '192.168.2.2', as_path: [65010])
 
     best_route = @rib.select_best_path(prefix)
-    binding.irb
-
     # AS_PATHが短いルート2 (peer_ip: 192.168.2.2)が選ばれること
     assert_equal '192.168.2.2', best_route[:peer_ip], 'AS_PATHが短いルートが選ばれること'
     assert_equal [65010], best_route[:as_path]
