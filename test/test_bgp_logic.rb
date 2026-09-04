@@ -14,8 +14,11 @@ class BGPLogicTest < Minitest::Test
     msg = BGPMessage.new(BGPMessage::TYPE_UPDATE, payload)
     parsed = msg.parse_update_payload
 
-    # 入れ子にならず、フラットな数値配列になっていること
-    assert_equal [65001, 65002], parsed[:as_path]
+    # セグメント種別(AS_SEQUENCE=2)とAS番号列が保持されていること
+    assert_equal [[2, [65001, 65002]]], parsed[:as_path]
+
+    # ループ検出などで使うフラット化ヘルパーで元の並びが取り出せること
+    assert_equal [65001, 65002], BGPMessage.flatten_as_path(parsed[:as_path])
   end
 
   def test_parser_streaming

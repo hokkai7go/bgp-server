@@ -114,21 +114,17 @@ class BGPSession
   end
 
   def receive_and_handle_open
-    # 実際にはデータが完全に揃うまでループする必要があるが、ここでは簡易化
     begin
       data = @socket.readpartial(1024)
+      @parser.append(data)
+      msg = @parser.next_message
 
-      # TODO: BGPMessageParserを使ってデータを BGPMessage オブジェクトに変換する
-      # 例: received_msg = @parser.parse(data)
+      # ヘッダー＋長さが揃っていない、あるいはマーカー異常でメッセージ化できなかった
+      return false unless msg
 
-      # ここでは、受信したバイナリデータを直接パースして検証する (テストのため簡易化)
-      # 受信データがBGPヘッダー＋最低限のOPENペイロード（19+10=29バイト）以上あるか確認
-      return false unless data && data.length >= 29
-      marker = data[0, 16]
-      type   = data[18].unpack('C').first
-
-      # 失敗時は NOTIFICATION を送るロジックが本来必要だが、ここでは false を返す
-      unless marker == BGPMessage::MARKER && type == BGPMessage::TYPE_OPEN
+      unless msg.type == BGPMessage::TYPE_OPEN
+        # RFC 4271 6.2: 期待外のメッセージ種別はMessage Header Error (Bad Message Type) としてNOTIFICATIONを送る
+        send_notification(BGPMessage::NOTIFICATION_ERROR_CODE_MESSAGE_HEADER, 3)
         puts "<-- Received invalid message or not an OPEN message."
         return false
       end
@@ -145,15 +141,23 @@ class BGPSession
     end
   end
 
+  def send_notification(error_code, error_subcode = 0, data = ''.b)
+    notification = BGPMessage.build_notification(error_code, error_subcode, data)
+    @socket.write(notification.to_binary)
+    puts "--> Sent NOTIFICATION (error_code=#{error_code}, error_subcode=#{error_subcode})."
+  rescue => e
+    puts "Error sending NOTIFICATION: #{e.message}"
+  end
+
   def handle_update_message(msg)
     parsed = msg.parse_update_payload
-    return unless parsed
+    return false unless parsed
 
-    my_as = @config[:my_as]
+    as_path = BGPMessage.flatten_as_path(parsed[:as_path])
 
-    if parsed[:as_path].include?(my_as)
-      puts "[WARN] Loop detected in AS_PATH: #{parsed[:as_path]}. Dropping route."
-      false
+    if as_path.include?(@my_as)
+      puts "[WARN] Loop detected in AS_PATH: #{as_path}. Dropping route."
+      return false
     end
 
     # ループがなければ、フォワーディングテーブル（RIB）に登録する処理へ進む

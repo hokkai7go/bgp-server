@@ -8,6 +8,18 @@ class BGPMessage
 
   BGP_VERSION = 4
 
+  # RFC 4271 Section 4.3: AS_PATH segment types
+  AS_PATH_SEGMENT_TYPE_AS_SET      = 1
+  AS_PATH_SEGMENT_TYPE_AS_SEQUENCE = 2
+
+  # RFC 4271 Section 4.5 / Section 6: NOTIFICATION error codes
+  NOTIFICATION_ERROR_CODE_MESSAGE_HEADER     = 1
+  NOTIFICATION_ERROR_CODE_OPEN_MESSAGE       = 2
+  NOTIFICATION_ERROR_CODE_UPDATE_MESSAGE     = 3
+  NOTIFICATION_ERROR_CODE_HOLD_TIMER_EXPIRED = 4
+  NOTIFICATION_ERROR_CODE_FSM                = 5
+  NOTIFICATION_ERROR_CODE_CEASE              = 6
+
   # すべてのBGPメッセージは19バイトのヘッダーを持つ
   HEADER_LENGTH = 19
   MARKER        = ("\xFF" * 16).b # 16バイトのマーカー
@@ -44,6 +56,17 @@ class BGPMessage
 
   def self.build_keepalive
     new(TYPE_KEEPALIVE, '')
+  end
+
+  def self.build_notification(error_code, error_subcode = 0, data = ''.b)
+    payload = [error_code, error_subcode].pack('CC') + data.b
+    new(TYPE_NOTIFICATION, payload)
+  end
+
+  # AS_PATHのセグメント構造 [[type, [asn, ...]], ...] を
+  # ループ検出などで使うフラットなAS番号配列に変換する
+  def self.flatten_as_path(segments)
+    Array(segments).flat_map { |(_type, asns)| asns }
   end
 
   def self.parse_nlri(binary_data)
@@ -84,11 +107,20 @@ class BGPMessage
     nlri_data = data
 
     {
-      withdrawn: withdrawn_data,
-      as_path:   attributes[:as_path],
-      next_hop:  attributes[:next_hop],
-      nlri:      nlri_data
+      withdrawn_routes: self.class.parse_nlri(withdrawn_data),
+      as_path:          attributes[:as_path],
+      next_hop:         attributes[:next_hop],
+      nlri:             self.class.parse_nlri(nlri_data)
     }
+  end
+
+  def parse_notification_payload
+    return nil unless @type == TYPE_NOTIFICATION
+
+    error_code, error_subcode = @payload.byteslice(0, 2).unpack('CC')
+    data = @payload.byteslice(2..-1) || ''.b
+
+    { error_code: error_code, error_subcode: error_subcode, data: data }
   end
 
   private
@@ -119,21 +151,25 @@ class BGPMessage
   end
 
   def parse_as_path(data)
-    path   = []
-    cursor = 0
+    # RFC 4271 4.3: AS_PATHはセグメントの列。セグメント種別(AS_SET/AS_SEQUENCE)により
+    # 経路長の数え方やループ検出の意味が変わるため、種別を保持したまま返す。
+    segments = []
+    cursor   = 0
     while cursor < data.bytesize
       # seg_type (1: AS_SET, 2: AS_SEQUENCE)
       # seg_len: (AS番号の個数)
-      _seg_type = data.getbyte(cursor)
-      seg_len   = data.getbyte(cursor + 1)
+      seg_type = data.getbyte(cursor)
+      seg_len  = data.getbyte(cursor + 1)
       cursor += 2
 
+      asns = []
       seg_len.times do
-        # 2バイトずつAS番号を取り出して、フラットな配列に放り込む
-        path << data.byteslice(cursor, 2).unpack1('n')
+        # 2バイトずつAS番号を取り出す
+        asns << data.byteslice(cursor, 2).unpack1('n')
         cursor += 2
       end
+      segments << [seg_type, asns]
     end
-    path
+    segments
   end
 end
