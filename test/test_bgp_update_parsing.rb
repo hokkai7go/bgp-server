@@ -17,6 +17,6 @@ class BGPUpdateParsingTest < Minitest::Test
 
     assert_equal 0, parsed[:withdrawn].length
     assert_kind_of Array, parsed[:as_path]
-    assert_equal [65001, 65002], parsed[:as_path], "セグメントタイプとAS_PATHが正しく数値の配列として抽出されること"
+    assert_equal [65001, 65002], parsed[:as_path], 'セグメントタイプとAS_PATHが正しく数値の配列として抽出されること'
   end
 end
