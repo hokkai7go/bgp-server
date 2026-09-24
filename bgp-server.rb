@@ -1,5 +1,7 @@
 require 'socket'
 require 'ipaddr'
+require_relative 'lib/bgp_message'
+require_relative 'lib/bgp_message_parser'
 
 class BGPSocket
   attr_reader :port
@@ -40,16 +42,21 @@ class BGPSession
   STATE_OPENCONFIRM = :OpenConfirm
   STATE_ESTABLISHED = :Established
 
-  def initialize(client_socket, my_as, my_router_id)
+  def initialize(client_socket, my_as, my_router_id, rib: nil)
     @socket = client_socket
     @my_as = my_as
     @my_router_id = my_router_id
+    @rib       = rib
     @state     = STATE_OPENSENT
     @hold_time = 180
     @keepalive_interval = 60
     @hold_timer_thread  = nil
     @keepalive_timer_thread = nil
     @parser = BGPMessageParser.new
+
+    @peer_ip = if @socket.respond_to?(:peeraddr)
+                 @socket.peeraddr[3] rescue nil
+               end
   end
 
   def start_keepalive_timer
@@ -105,6 +112,10 @@ class BGPSession
     # 自分自身でない場合のみ kill する
     @keepalive_timer_thread&.kill if @keepalive_timer_thread != Thread.current
     @hold_timer_thread&.kill if @hold_timer_thread != Thread.current
+
+    if @rib && @peer_ip
+      @rib.remove_routes_from_peer(@peer_ip)
+    end
   end
 
   def send_open(hold_time = 180)
@@ -157,6 +168,16 @@ class BGPSession
     end
 
     # ループがなければ、フォワーディングテーブル（RIB）に登録する処理へ進む
+    if @rib && @peer_ip
+      parsed[:nlri].each do |prefix|
+        @rib.add_route(
+          prefix,
+          peer_ip:  @peer_ip,
+          next_hop: parsed[:next_hop],
+          as_path:  parsed[:as_path]
+        )
+      end
+    end
     true
   end
 end
