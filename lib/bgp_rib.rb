@@ -27,7 +27,7 @@ class BGPRib
   end
 
   # 特定のピアから受け取ったすべての経路を削除（セッション切断時用）
-  def remove_route_from_peer(peer_ip)
+  def remove_routes_from_peer(peer_ip)
     @table.each do |prefix, peers|
       peers.delete(peer_ip)
     end
